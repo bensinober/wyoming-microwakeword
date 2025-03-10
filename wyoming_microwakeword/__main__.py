@@ -126,10 +126,10 @@ class MicroWakeWordEventHandler(AsyncEventHandler):
         if not custom_model_dir.is_dir():
             _LOGGER.error("Custom model directory does not exist: %s", custom_model_dir)
             return
-        
+
         for model_path  in custom_model_dir.glob("*.json"):
             model_name = model_path.stem
-            
+
             wake_word = None
             author = None
             website = None
@@ -147,8 +147,8 @@ class MicroWakeWordEventHandler(AsyncEventHandler):
             except Exception as e:
                 _LOGGER.error("Failed to parse model config %s: %s", model_path, e)
             self.custom_models[model_name] = CustomModel(
-                name=model_name, 
-                path=model_path, 
+                name=model_name,
+                path=model_path,
                 wake_word=wake_word if wake_word else "Unknown",
                 author=author if author else "Unknown",
                 website=website if website else "Unknown",
@@ -156,13 +156,8 @@ class MicroWakeWordEventHandler(AsyncEventHandler):
                 version=version if version else "Unknown"
             )
             _LOGGER.debug("Loaded custom model: %s (%s)", model_name, model_path)
-    
+
     async def handle_event(self, event: Event) -> bool:
-        if Describe.is_type(event.type):
-            wyoming_info = self._get_info()
-            await self.write_event(wyoming_info.event())
-            _LOGGER.debug("Sent info to client: %s", self.client_id)
-            return True
 
         if Detect.is_type(event.type):
             detect = Detect.from_event(event)
@@ -184,12 +179,12 @@ class MicroWakeWordEventHandler(AsyncEventHandler):
             if not self.models and not self.custom_models:
                 # Default
                 self.models.add(DEFAULT_MODEL)
-            
+
             for model in self.models:
                 self.detectors.append(
                     Detector(name=model.value, mww=MicroWakeWord.from_builtin(model))
                 )
-            
+
             for model in self.custom_models.values():
                 self.detectors.append(
                     Detector(name=model.name, mww=MicroWakeWord.from_config(model.path))
@@ -207,7 +202,6 @@ class MicroWakeWordEventHandler(AsyncEventHandler):
                     await self.write_event(
                         Detection(name=detector.name, timestamp=chunk.timestamp).event()
                     )
-
         elif AudioStop.is_type(event.type):
             # Inform client if not detections occurred
             if not any(d.detected for d in self.detectors):
@@ -217,6 +211,11 @@ class MicroWakeWordEventHandler(AsyncEventHandler):
                 _LOGGER.debug(
                     "Audio stopped without detection from client: %s", self.client_id
                 )
+        elif Describe.is_type(event.type):
+            wyoming_info = self._get_info()
+            await self.write_event(wyoming_info.event())
+            _LOGGER.debug("Sent info to client: %s", self.client_id)
+
         else:
             _LOGGER.debug("Unexpected event: type=%s, data=%s", event.type, event.data)
 
